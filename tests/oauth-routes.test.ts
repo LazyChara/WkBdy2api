@@ -48,12 +48,12 @@ describe('OAuth management endpoints', () => {
     expect(cancel.json().status).toBe('cancelled');
   });
 
-  it('serves an OAuth button, not token fields or the local import flow', async () => {
+  it('serves sign-in and import buttons, never token input fields', async () => {
     const { app } = setup();
     const panel = await app.inject('/admin');
     expect(panel.body).toContain('id="oauth-start"');
+    expect(panel.body).toContain('id="local-import"');
     expect(panel.body).not.toContain('id="login-token"');
-    expect(panel.body).not.toContain('id="local-import"');
     expect(panel.body).not.toContain(KEY);
   });
 });

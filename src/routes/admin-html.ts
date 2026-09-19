@@ -9,7 +9,7 @@
 
 export function adminPanelHtml(): string {
   return `<!doctype html>
-<html lang="zh-CN">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -482,6 +482,9 @@ h2 { font-size:30px; letter-spacing:-.04em; line-height:1.08; margin:4px 0 8px; 
 @media (prefers-reduced-motion: reduce) { .model-card { transition:none; } }
 @media (max-width:720px) { .app-toolbar { padding:14px 16px; min-height:64px; } .toolbar-status { display:none; } .main { padding:24px 16px 56px; } .sidebar { padding:10px 14px; } .nav-item span { display:inline; } .model-card { align-items:flex-start; flex-direction:column; gap:16px; } .model-limits { width:100%; justify-content:space-between; padding:12px 0 0; border-left:0; border-top:1px solid var(--divider); } .model-limits div { align-items:flex-start; } .context-setting { align-items:flex-start; flex-direction:column; gap:16px; } .setting-control { width:100%; } .global-context-select { flex:1; } }
 :focus-visible { outline:2px solid var(--accent); outline-offset:3px; border-radius:8px; }
+.lang-seg { margin-left: 4px; flex-shrink: 0; }
+.lang-seg .seg-btn { padding: 5px 10px; }
+.unlock-lang { display: flex; justify-content: center; margin-bottom: 16px; }
 </style>
 </head>
 <body>
@@ -507,9 +510,299 @@ h2 { font-size:30px; letter-spacing:-.04em; line-height:1.08; margin:4px 0 8px; 
     oauthMessage: '',
     oauthUrl: '',
     overviewPending: false,
+    importBusy: false,
+    lang: 'en',
   };
 
   var $ = function (sel, root) { return (root || document).querySelector(sel); };
+
+  // ---------- i18n (default EN; RU and ZH via switcher, persisted) ----------
+  var LANG_STORAGE = 'wkb2api-lang';
+  var I18N = {
+    ru: {
+      '概览': 'Обзор',
+      '模型': 'Модели',
+      '请求记录': 'Запросы',
+      '上游与凭据': 'Апстрим и доступ',
+      'Key 无效，请检查后重试。': 'Недействительный ключ, проверьте и попробуйте снова.',
+      '请求失败（HTTP ': 'Ошибка запроса (HTTP ',
+      '）': ')',
+      ' 次 · ': ' · ',
+      ' tok': ' ток.',
+      '保存中…': 'Сохранение…',
+      '保存失败': 'Не сохранено',
+      '已保存': 'Сохранено',
+      '已保存 · 所有账号生效': 'Сохранено · применяется ко всем аккаунтам',
+      '保存失败：': 'Не сохранено: ',
+      '服务端未确认所选档位': 'Сервер не подтвердил выбранный размер контекста',
+      ' 小时 ': ' ч ',
+      ' 分': ' мин',
+      ' 秒': ' с',
+      'Wkbdy2api 控制台': 'Консоль Wkbdy2api',
+      '输入网关的本地 API Key（与调用 /v1 接口使用的 Bearer Key 相同）。Key 只保存在此浏览器。': 'Введите локальный API-ключ шлюза (тот же Bearer-ключ, что для /v1). Ключ хранится только в этом браузере.',
+      '解锁': 'Разблокировать',
+      '请输入 Key。': 'Введите ключ.',
+      '正在验证…': 'Проверка…',
+      '无法连接网关，请重试。': 'Не удалось подключиться к шлюзу, попробуйте снова.',
+      'WorkBuddy → OpenAI 网关': 'WorkBuddy → OpenAI-шлюз',
+      '主导航': 'Основная навигация',
+      '本地运行': 'локально',
+      'LOCAL GATEWAY': 'ЛОКАЛЬНЫЙ ШЛЮЗ',
+      '运行正常': 'Работает',
+      '刷新': 'Обновить',
+      '刷新当前数据': 'Обновить текущие данные',
+      '尚无请求': 'Пока нет запросов',
+      '网关运行 ': 'Шлюз работает ',
+      '，数据每 5 秒自动刷新。': ', данные обновляются каждые 5 с.',
+      '总请求': 'Всего запросов',
+      '错误率': 'Ошибки',
+      'P95 延迟': 'Задержка P95',
+      'Token 用量': 'Токены',
+      '模型调用量': 'Вызовы моделей',
+      '累计请求 · 最近 200 条窗口': 'Всего · окно последних 200',
+      '默认': 'по умолч.',
+      '工具': 'инструменты',
+      '视觉': 'зрение',
+      '推理': 'рассуждения',
+      '支持 ': 'Поддерживает ',
+      '未提供价格': 'цена не указана',
+      'MODEL CATALOG': 'КАТАЛОГ МОДЕЛЕЙ',
+      ' 个模型 · 每个模型的上下文设置会应用到账号池中的所有账号。': ' моделей · настройка контекста применяется ко всем аккаунтам пула.',
+      '最近 ': 'Последние ',
+      ' 条请求（重启后清零）。': ' запросов (сбрасывается при рестарте).',
+      '加载中…': 'Загрузка…',
+      '尚无请求记录。': 'Пока нет записей.',
+      '时间': 'Время',
+      '请求': 'Запрос',
+      '状态': 'Статус',
+      'tok 入/出': 'Ток. вх/вых',
+      '耗时': 'Длит.',
+      '随机': 'Случайно',
+      '轮询': 'По очереди',
+      '可用': 'Доступен',
+      '冷却中': 'Остывает',
+      '不可用': 'Недоступен',
+      '移除': 'Удалить',
+      '账号池为空 — 使用本机凭据文件的单账号': 'Пул пуст — добавьте аккаунт ниже',
+      '账号池': 'Пул аккаунтов',
+      '账号池内的凭据按请求轮流使用；池为空时回落到本机凭据文件。凭据值永不显示、不落盘。': 'Учётные данные пула используются по очереди. Если пул пуст, запросы завершаются ошибкой — добавьте аккаунт ниже. Значения никогда не показываются и не сохраняются.',
+      '账号池状态': 'Статус пула',
+      ' 个账号 · ': ' ак. · ',
+      '调度 · 401 的账号自动冷却后重试': ' · аккаунты с 401 остывают и повторяются',
+      '网页登录 · 仅保存在服务内存中': 'Вход через сайт · только в памяти сервиса',
+      '需要重新网页登录': 'Требуется повторный вход',
+      '已导入凭据': 'Учётные данные импортированы',
+      '添加账号': 'Добавить аккаунт',
+      '官方网页登录': 'Вход через сайт',
+      '点击后在 WorkBuddy 官方网页完成登录，网关会自动将账号加入池中。不需要安装桌面客户端，也不用复制 Token。密码和验证码只在官方页面输入。': 'Нажмите и войдите на официальном сайте WorkBuddy, шлюз сам добавит аккаунт в пул. Десктопный клиент не нужен, токен копировать не надо. Пароль и код — только на официальной странице.',
+      '账号备注（可选）': 'Заметка (необязательно)',
+      '例如：工作账号': 'Например: рабочий',
+      '登录 WorkBuddy': 'Войти в WorkBuddy',
+      '取消登录': 'Отменить вход',
+      '登录结果会自动显示，无需刷新。': 'Результат входа появится автоматически, обновлять не нужно.',
+      '打开官方登录页面': 'Открыть страницу входа',
+      '账号会加密保存；重启网关后自动恢复，无需重新登录。': 'Аккаунт хранится в шифрованном виде и восстанавливается после рестарта, вход повторять не нужно.',
+      '来源': 'Источник',
+      '凭据状态': 'Статус доступа',
+      '账号池为空，请登录 WorkBuddy': 'Пул пуст, войдите в WorkBuddy',
+      '上游端点': 'Апстрим',
+      '立即刷新': 'Обновить сейчас',
+      '账号池为空，点击下方按钮登录账号。': 'Пул пуст — войдите или импортируйте аккаунт ниже.',
+      '从文件导入': 'Импорт из файла',
+      '从本机 WorkBuddy 凭据文件导入账号。': 'Импорт аккаунтов из локального файла учётных данных WorkBuddy.',
+      '正在导入…': 'Импортирую…',
+      '已导入 ': 'Импортировано ',
+      ' 个账号。': ' аккаунтов.',
+      '未找到可导入的账号。': 'Импортировать нечего.',
+      '未找到凭据文件：': 'Файл учётных данных не найден: ',
+      '无法读取凭据文件：': 'Не удалось прочитать файл учётных данных: ',
+      '凭据文件格式不支持：': 'Неподдерживаемый формат файла: ',
+      'Local file · UID': 'Локальный файл · UID',
+      '等待恢复': 'Ожидает',
+      '正在准备登录…': 'Готовлю вход…',
+      '登录成功，': 'Вход успешен, ',
+      ' 已加入账号池。': ' добавлен в пул.',
+      '登录已超时，请重新开始。': 'Время входа истекло, начните заново.',
+      '已取消登录。': 'Вход отменён.',
+      '登录失败：': 'Ошибка входа: ',
+      '请重试': 'попробуйте снова',
+      '等待你在官方网页完成登录…': 'Ожидаю завершения входа на официальном сайте…',
+      '授权已完成，正在确认账号…': 'Авторизация завершена, подтверждаю аккаунт…',
+      '正在打开官方登录页': 'Открываю страницу входа',
+      '正在准备 WorkBuddy 登录，请稍候。': 'Готовлю вход WorkBuddy, подождите.',
+      '正在申请官方登录链接…': 'Запрашиваю ссылку для входа…',
+      '请在新打开的官方网页完成登录；未弹出时点击下方链接。': 'Завершите вход на открывшейся официальной странице; если не открылась — нажмите ссылку ниже.',
+      '此浏览器已有登录正在进行，请完成它或等待过期。': 'В этом браузере уже идёт вход, завершите его или дождитесь истечения.',
+      '账号已登录并加入池中。': 'Аккаунт добавлен в пул.',
+      '上下文': 'Контекст',
+      '输入': 'Ввод',
+      '输出': 'Вывод'
+    },
+    en: {
+      '概览': 'Overview',
+      '模型': 'Models',
+      '请求记录': 'Requests',
+      '上游与凭据': 'Upstream & credentials',
+      'Key 无效，请检查后重试。': 'Invalid key, check and retry.',
+      '请求失败（HTTP ': 'Request failed (HTTP ',
+      '）': ')',
+      ' 次 · ': ' req · ',
+      ' tok': ' tok',
+      '保存中…': 'Saving…',
+      '保存失败': 'Save failed',
+      '已保存': 'Saved',
+      '已保存 · 所有账号生效': 'Saved · applies to all accounts',
+      '保存失败：': 'Save failed: ',
+      '服务端未确认所选档位': 'Server did not confirm the selected context tier',
+      ' 小时 ': ' h ',
+      ' 分': ' min',
+      ' 秒': ' s',
+      'Wkbdy2api 控制台': 'Wkbdy2api Console',
+      '输入网关的本地 API Key（与调用 /v1 接口使用的 Bearer Key 相同）。Key 只保存在此浏览器。': 'Enter the gateway local API key (same Bearer key as for /v1). The key stays in this browser only.',
+      '解锁': 'Unlock',
+      '请输入 Key。': 'Enter the key.',
+      '正在验证…': 'Verifying…',
+      '无法连接网关，请重试。': 'Cannot reach the gateway, retry.',
+      'WorkBuddy → OpenAI 网关': 'WorkBuddy → OpenAI gateway',
+      '主导航': 'Primary navigation',
+      '本地运行': 'local',
+      'LOCAL GATEWAY': 'LOCAL GATEWAY',
+      '运行正常': 'Healthy',
+      '刷新': 'Refresh',
+      '刷新当前数据': 'Refresh current data',
+      '尚无请求': 'No requests yet',
+      '网关运行 ': 'Gateway up ',
+      '，数据每 5 秒自动刷新。': ', auto-refresh every 5 s.',
+      '总请求': 'Total requests',
+      '错误率': 'Error rate',
+      'P95 延迟': 'P95 latency',
+      'Token 用量': 'Token usage',
+      '模型调用量': 'Model calls',
+      '累计请求 · 最近 200 条窗口': 'Total · last-200 window',
+      '默认': 'default',
+      '工具': 'tools',
+      '视觉': 'vision',
+      '推理': 'reasoning',
+      '支持 ': 'Supports ',
+      '未提供价格': 'no price',
+      'MODEL CATALOG': 'MODEL CATALOG',
+      ' 个模型 · 每个模型的上下文设置会应用到账号池中的所有账号。': ' models · per-model context applies to every pool account.',
+      '最近 ': 'Last ',
+      ' 条请求（重启后清零）。': ' requests (cleared on restart).',
+      '加载中…': 'Loading…',
+      '尚无请求记录。': 'No records yet.',
+      '时间': 'Time',
+      '请求': 'Request',
+      '状态': 'Status',
+      'tok 入/出': 'tok in/out',
+      '耗时': 'Duration',
+      '随机': 'Random',
+      '轮询': 'Round-robin',
+      '可用': 'Available',
+      '冷却中': 'Cooling down',
+      '不可用': 'Unavailable',
+      '移除': 'Remove',
+      '账号池为空 — 使用本机凭据文件的单账号': 'Pool empty — add an account below',
+      '账号池': 'Account pool',
+      '账号池内的凭据按请求轮流使用；池为空时回落到本机凭据文件。凭据值永不显示、不落盘。': 'Pool credentials are used in rotation. If the pool is empty, requests fail with an error — add an account below. Values are never shown or stored.',
+      '账号池状态': 'Pool status',
+      ' 个账号 · ': ' accounts · ',
+      '调度 · 401 的账号自动冷却后重试': ' · 401 accounts cool down and retry',
+      '网页登录 · 仅保存在服务内存中': 'Web sign-in · kept in service memory only',
+      '需要重新网页登录': 'Re-auth required',
+      '已导入凭据': 'Imported credentials',
+      '添加账号': 'Add account',
+      '官方网页登录': 'Official website login',
+      '点击后在 WorkBuddy 官方网页完成登录，网关会自动将账号加入池中。不需要安装桌面客户端，也不用复制 Token。密码和验证码只在官方页面输入。': 'Click to sign in on the official WorkBuddy website; the gateway joins the account to the pool automatically. No desktop client, no token copy. Password and code only on the official page.',
+      '账号备注（可选）': 'Note (optional)',
+      '例如：工作账号': 'e.g. work',
+      '登录 WorkBuddy': 'Sign in with WorkBuddy',
+      '取消登录': 'Cancel sign-in',
+      '登录结果会自动显示，无需刷新。': 'The result appears automatically, no refresh needed.',
+      '打开官方登录页面': 'Open the official sign-in page',
+      '账号会加密保存；重启网关后自动恢复，无需重新登录。': 'Accounts are stored encrypted and restored after restart, no re-login.',
+      '来源': 'Source',
+      '凭据状态': 'Credential status',
+      '账号池为空，请登录 WorkBuddy': 'Pool is empty, sign in with WorkBuddy',
+      '上游端点': 'Upstream endpoint',
+      '立即刷新': 'Refresh now',
+      '账号池为空，点击下方按钮登录账号。': 'Pool is empty — sign in or import an account below.',
+      '从文件导入': 'Import from file',
+      '从本机 WorkBuddy 凭据文件导入账号。': 'Import accounts from the local WorkBuddy credential file.',
+      '正在导入…': 'Importing…',
+      '已导入 ': 'Imported ',
+      ' 个账号。': ' accounts.',
+      '未找到可导入的账号。': 'Nothing to import.',
+      '未找到凭据文件：': 'Credential file not found: ',
+      '无法读取凭据文件：': 'Cannot read the credential file: ',
+      '凭据文件格式不支持：': 'Unsupported credential file format: ',
+      '等待恢复': 'Pending recovery',
+      '正在准备登录…': 'Preparing sign-in…',
+      '登录成功，': 'Signed in, ',
+      ' 已加入账号池。': ' joined the pool.',
+      '登录已超时，请重新开始。': 'Sign-in expired, start over.',
+      '已取消登录。': 'Sign-in cancelled.',
+      '登录失败：': 'Sign-in failed: ',
+      '请重试': 'retry',
+      '等待你在官方网页完成登录…': 'Waiting for you to finish signing in…',
+      '授权已完成，正在确认账号…': 'Authorized, confirming the account…',
+      '正在打开官方登录页': 'Opening the official sign-in page',
+      '正在准备 WorkBuddy 登录，请稍候。': 'Preparing WorkBuddy sign-in, wait.',
+      '正在申请官方登录链接…': 'Requesting the official sign-in link…',
+      '请在新打开的官方网页完成登录；未弹出时点击下方链接。': 'Finish signing in on the opened official page; if none opened, click the link below.',
+      '此浏览器已有登录正在进行，请完成它或等待过期。': 'A sign-in is already pending in this browser, finish it or wait for expiry.',
+      '账号已登录并加入池中。': 'Account signed in and joined the pool.',
+      '上下文': 'Context',
+      '输入': 'Input',
+      '输出': 'Output'
+    }
+  };
+
+  function tr(s) {
+    if (state.lang === 'zh') return s;
+    var d = I18N[state.lang] || I18N.en;
+    return d[s] !== undefined ? d[s] : s;
+  }
+
+  function localize(html) {
+    if (!html || state.lang === 'zh') return html;
+    var d = I18N[state.lang] || I18N.en;
+    var keys = Object.keys(d).sort(function (a, b) { return b.length - a.length; });
+    var out = html;
+    for (var i = 0; i < keys.length; i++) {
+      var k = keys[i];
+      if (out.indexOf(k) < 0) continue;
+      out = out.split(k).join(d[k]);
+    }
+    return out;
+  }
+
+  function langLocale() { return state.lang === 'en' ? 'en-US' : state.lang === 'zh' ? 'zh-CN' : 'ru-RU'; }
+
+  function langSeg() {
+    function b(v, label) {
+      return '<button class="seg-btn lang-btn' + (state.lang === v ? ' active' : '') + '" data-lang="' + v + '" aria-pressed="' + (state.lang === v) + '">' + label + '</button>';
+    }
+    return '<div class="seg lang-seg" role="group" aria-label="Language">' + b('ru', 'RU') + b('en', 'EN') + b('zh', '中文') + '</div>';
+  }
+
+  function setLang(l) {
+    if (l !== 'ru' && l !== 'en' && l !== 'zh') l = 'en';
+    if (state.lang === l) return;
+    state.lang = l;
+    try { localStorage.setItem(LANG_STORAGE, l); } catch (e) {}
+    try { document.documentElement.lang = l === 'zh' ? 'zh-CN' : l; } catch (e) {}
+    render();
+  }
+
+  function wireLang() {
+    var btns = document.querySelectorAll('.lang-btn');
+    for (var i = 0; i < btns.length; i++) {
+      (function (btn) {
+        btn.addEventListener('click', function () { setLang(btn.getAttribute('data-lang')); });
+      })(btns[i]);
+    }
+  }
 
   // ---------- icons (inline, 16px, stroke-based) ----------
   var icons = {
@@ -533,7 +826,7 @@ h2 { font-size:30px; letter-spacing:-.04em; line-height:1.08; margin:4px 0 8px; 
           try { localStorage.removeItem(KEY_STORAGE); } catch (e) {}
           state.key = null;
           state.overview = null;
-          state.unlockError = 'Key 无效，请检查后重试。';
+          state.unlockError = tr('Key 无效，请检查后重试。');
           clearTimeout(state.oauthTimer);
           state.oauth = null;
           state.oauthUrl = '';
@@ -541,8 +834,9 @@ h2 { font-size:30px; letter-spacing:-.04em; line-height:1.08; margin:4px 0 8px; 
           render();
         }
         if (!res.ok) {
-          var error = new Error(body.error && body.error.message || '请求失败（HTTP ' + res.status + '）');
+          var error = new Error(body.error && body.error.message || (tr('请求失败（HTTP ') + res.status + tr('）')));
           error.code = body.error && body.error.code;
+          error.path = body.error && body.error.param;
           throw error;
         }
         return body;
@@ -591,7 +885,7 @@ h2 { font-size:30px; letter-spacing:-.04em; line-height:1.08; margin:4px 0 8px; 
       var fill = row.querySelector('.bar-fill');
       var val = row.querySelector('.row-value');
       if (fill) fill.style.width = (max ? Math.round(m.count / max * 100) : 0) + '%';
-      if (val) val.textContent = fmtInt(m.count) + ' 次 · ' + fmtInt(m.tokens) + ' tok';
+      if (val) val.textContent = fmtInt(m.count) + tr(' 次 · ') + fmtInt(m.tokens) + tr(' tok');
     });
   }
 
@@ -617,23 +911,23 @@ h2 { font-size:30px; letter-spacing:-.04em; line-height:1.08; margin:4px 0 8px; 
     contextPending.add(model);
     contextRevision++;
     select.disabled = true;
-    if (stateText) stateText.textContent = '保存中…';
+    if (stateText) stateText.textContent = tr('保存中…');
     api('context-window', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ model_id: model, context_window: value }),
     }).then(function (result) {
-      if (!result.ok || result.model_id !== model || result.context_window !== value) throw new Error('服务端未确认所选档位');
+      if (!result.ok || result.model_id !== model || result.context_window !== value) throw new Error(tr('服务端未确认所选档位'));
       if (state.overview) {
         var settings = Object.assign({}, state.overview.pool.context_window || {});
         settings[model] = result.context_window;
         state.overview.pool.context_window = settings;
       }
       select.dataset.savedValue = String(result.context_window);
-      if (stateText) stateText.textContent = '已保存 · 所有账号生效';
+      if (stateText) stateText.textContent = tr('已保存 · 所有账号生效');
     }).catch(function (error) {
       select.value = previous;
-      if (stateText) stateText.textContent = '保存失败：' + error.message;
+      if (stateText) stateText.textContent = tr('保存失败：') + error.message;
     }).finally(function () {
       contextPending.delete(model);
       contextRevision++;
@@ -664,11 +958,11 @@ h2 { font-size:30px; letter-spacing:-.04em; line-height:1.08; margin:4px 0 8px; 
   function fmtUptime(ms) {
     var s = Math.floor(ms / 1000);
     var h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60);
-    return h > 0 ? h + ' 小时 ' + m + ' 分' : m + ' 分 ' + (s % 60) + ' 秒';
+    return h > 0 ? h + tr(' 小时 ') + m + tr(' 分') : m + tr(' 分') + ' ' + (s % 60) + tr(' 秒');
   }
   function fmtTime(ts) {
     var d = new Date(ts);
-    return d.toLocaleTimeString('zh-CN', { hour12: false }) + '.' + String(d.getMilliseconds()).padStart(3, '0');
+    return d.toLocaleTimeString(langLocale(), { hour12: false }) + '.' + String(d.getMilliseconds()).padStart(3, '0');
   }
   function escapeHtml(s) {
     return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
@@ -679,14 +973,16 @@ h2 { font-size:30px; letter-spacing:-.04em; line-height:1.08; margin:4px 0 8px; 
   // ---------- views ----------
   function render() {
     var app = $('#app');
-    if (!state.key) { app.innerHTML = unlockView(); wireUnlock(); return; }
-    app.innerHTML = shellView();
+    if (!state.key) { app.innerHTML = localize(unlockView()); wireUnlock(); wireLang(); return; }
+    app.innerHTML = localize(shellView());
     wireNav();
+    wireLang();
     renderMain();
   }
 
   function unlockView() {
     return '<div class="unlock">' +
+      '<div class="unlock-lang">' + langSeg() + '</div>' +
       '<h2>Wkbdy2api 控制台</h2>' +
       '<p>输入网关的本地 API Key（与调用 /v1 接口使用的 Bearer Key 相同）。Key 只保存在此浏览器。</p>' +
       '<input class="key-input" id="key-input" type="password" placeholder="wkb2api-local-key…" autocomplete="off">' +
@@ -699,13 +995,13 @@ h2 { font-size:30px; letter-spacing:-.04em; line-height:1.08; margin:4px 0 8px; 
     var input = $('#key-input'), btn = $('#key-submit'), err = $('#key-error');
     function submit() {
       var v = input.value.trim();
-      if (!v) { err.textContent = '请输入 Key。'; return; }
+      if (!v) { err.textContent = tr('请输入 Key。'); return; }
       if (btn.disabled) return;
       state.key = v;
       state.overview = null;
       state.unlockError = null;
       btn.disabled = true;
-      btn.textContent = '正在验证…';
+      btn.textContent = tr('正在验证…');
       refreshOverview().then(function () {
         try { localStorage.setItem(KEY_STORAGE, v); } catch (e) {}
         render();
@@ -713,7 +1009,7 @@ h2 { font-size:30px; letter-spacing:-.04em; line-height:1.08; margin:4px 0 8px; 
       }).catch(function () {
         state.key = null;
         state.overview = null;
-        state.unlockError = state.unlockError || '无法连接网关，请重试。';
+        state.unlockError = state.unlockError || tr('无法连接网关，请重试。');
         render();
       });
     }
@@ -732,7 +1028,7 @@ h2 { font-size:30px; letter-spacing:-.04em; line-height:1.08; margin:4px 0 8px; 
       '<div class="brand"><span class="brand-dot" id="health-dot"></span><div><h1>Wkbdy2api</h1><small>WorkBuddy → OpenAI 网关</small></div></div>' +
       '<nav class="nav" aria-label="主导航">' + items + '</nav>' +
       '<div class="sidebar-footer">v' + escapeHtml(state.overview ? state.overview.version : '') + ' · 本地运行</div>' +
-      '</aside><div class="app-content"><header class="app-toolbar"><div><div class="eyebrow">LOCAL GATEWAY</div><div class="toolbar-title" id="toolbar-title">' + escapeHtml(navLabel(state.view)) + '</div></div><div class="toolbar-actions"><span class="toolbar-status"><span class="status-dot"></span>运行正常</span><button class="btn secondary toolbar-refresh" id="toolbar-refresh" aria-label="刷新当前数据">刷新</button></div></header><main class="main" id="main"></main></div></div>';
+      '</aside><div class="app-content"><header class="app-toolbar"><div><div class="eyebrow">LOCAL GATEWAY</div><div class="toolbar-title" id="toolbar-title">' + escapeHtml(navLabel(state.view)) + '</div></div><div class="toolbar-actions"><span class="toolbar-status"><span class="status-dot"></span>运行正常</span>' + langSeg() + '<button class="btn secondary toolbar-refresh" id="toolbar-refresh" aria-label="刷新当前数据">刷新</button></div></header><main class="main" id="main"></main></div></div>';
   }
 
   function renderMain() {
@@ -742,12 +1038,13 @@ h2 { font-size:30px; letter-spacing:-.04em; line-height:1.08; margin:4px 0 8px; 
     var dot = $('#health-dot');
     if (dot) dot.classList.toggle('down', d.credential.ok === false && !(d.pool && d.pool.accounts.some(function (a) { return a.ok; })));
 
-    if (state.view === 'overview') main.innerHTML = viewOverview(d);
-    else if (state.view === 'models') { main.innerHTML = viewModels(d); wireContextSelectors(); }
-    else if (state.view === 'requests') { main.innerHTML = viewRequestsShell(); loadRequests(); }
+    if (state.view === 'overview') main.innerHTML = localize(viewOverview(d));
+    else if (state.view === 'models') { main.innerHTML = localize(viewModels(d)); wireContextSelectors(); }
+    else if (state.view === 'requests') { main.innerHTML = localize(viewRequestsShell()); loadRequests(); }
     else if (state.view === 'upstream') {
-      main.innerHTML = viewUpstream(d);
+      main.innerHTML = localize(viewUpstream(d));
       wireLoginForm();
+      wireImport();
       updateOAuthView();
     }
   }
@@ -822,7 +1119,7 @@ h2 { font-size:30px; letter-spacing:-.04em; line-height:1.08; margin:4px 0 8px; 
       var body = $('#req-body');
       if (!body) return;
       if (!d.recent || d.recent.length === 0) {
-        body.innerHTML = '尚无请求记录。';
+        body.innerHTML = localize('尚无请求记录。');
         return;
       }
       var trs = d.recent.map(function (r) {
@@ -835,7 +1132,7 @@ h2 { font-size:30px; letter-spacing:-.04em; line-height:1.08; margin:4px 0 8px; 
           (r.model ? ' <span class="muted">· ' + escapeHtml(r.model) + (r.stream ? ' · stream' : '') + '</span>' : '') + '</td>' +
           '<td>' + st + '</td><td>' + tok + '</td><td>' + fmtMs(r.duration_ms) + '</td></tr>';
       }).join('');
-      $('#req-card').innerHTML = '<table><thead><tr><th>时间</th><th>请求</th><th>状态</th><th>tok 入/出</th><th>耗时</th></tr></thead><tbody>' + trs + '</tbody></table>';
+      $('#req-card').innerHTML = localize('<table><thead><tr><th>时间</th><th>请求</th><th>状态</th><th>tok 入/出</th><th>耗时</th></tr></thead><tbody>' + trs + '</tbody></table>');
     }).catch(function () {});
   }
 
@@ -878,7 +1175,10 @@ h2 { font-size:30px; letter-spacing:-.04em; line-height:1.08; margin:4px 0 8px; 
       '<p class="form-hint" id="oauth-status" role="status" aria-live="polite">登录结果会自动显示，无需刷新。</p>' +
       '<a id="oauth-link" class="form-hint" target="_blank" rel="noopener noreferrer" referrerpolicy="no-referrer" hidden>打开官方登录页面</a>' +
       '<p class="form-hint">账号会加密保存；重启网关后自动恢复，无需重新登录。</p>' +
-      '</div></div>' +
+      '</div>' +
+      '<div class="controls" style="margin-top:12px"><button class="btn secondary" id="local-import">从文件导入</button></div>' +
+      '<p class="form-hint" id="local-import-status" role="status" aria-live="polite">从本机 WorkBuddy 凭据文件导入账号。</p>' +
+      '</div>' +
       '<div class="card"><div class="card-header"><h3 class="card-title">账号池状态</h3><span class="pill ' + (c.ok ? 'ok' : 'error') + '">' + (c.ok ? '可用' : '不可用') + '</span></div>' +
       '<div class="rows">' +
       '<div class="row"><div class="row-main"><div class="row-title">来源</div></div><div class="row-value">' + escapeHtml(c.source) + '</div></div>' +
@@ -898,7 +1198,7 @@ h2 { font-size:30px; letter-spacing:-.04em; line-height:1.08; margin:4px 0 8px; 
       btn.addEventListener('click', function () {
         state.view = btn.getAttribute('data-view');
         var title = $('#toolbar-title');
-        if (title) title.textContent = navLabel(state.view);
+        if (title) title.textContent = tr(navLabel(state.view));
         document.querySelectorAll('.nav-item').forEach(function (b) {
           b.setAttribute('aria-current', b === btn ? 'true' : 'false');
         });
@@ -907,8 +1207,8 @@ h2 { font-size:30px; letter-spacing:-.04em; line-height:1.08; margin:4px 0 8px; 
     });
     var rf = $('#refresh-now');
     if (rf) rf.addEventListener('click', function () { refreshOverview().catch(function () {}); });
-    var tr = $('#toolbar-refresh');
-    if (tr) tr.addEventListener('click', function () { refreshOverview().catch(function () {}); });
+    var refreshBtn = $('#toolbar-refresh');
+    if (refreshBtn) refreshBtn.addEventListener('click', function () { refreshOverview().catch(function () {}); });
   }
 
   function patchAccountPool(d) {
@@ -918,7 +1218,7 @@ h2 { font-size:30px; letter-spacing:-.04em; line-height:1.08; margin:4px 0 8px; 
     var html = accounts.map(function (a) {
       return '<div class="row"><div class="row-main"><div class="row-title">' + escapeHtml(a.label) + (a.note ? ' · ' + escapeHtml(a.note) : '') + '</div><div class="row-sub">' + escapeHtml(a.detail) + '</div></div><span class="pill ' + (a.ok ? 'ok' : 'warn') + '">' + (a.ok ? '可用' : '等待恢复') + '</span><button class="btn secondary acct-remove" data-label="' + escapeHtml(a.label) + '">移除</button></div>';
     }).join('') || '<div class="row"><div class="row-title">账号池为空，点击下方按钮登录账号。</div></div>';
-    if (rows.dataset.snapshot !== html) { rows.innerHTML = html; rows.dataset.snapshot = html; }
+    if (rows.dataset.snapshot !== html) { rows.innerHTML = localize(html); rows.dataset.snapshot = html; }
     document.querySelectorAll('[data-strategy]').forEach(function (button) {
       var selected = button.dataset.strategy === d.pool.strategy;
       button.classList.toggle('active', selected);
@@ -930,9 +1230,9 @@ h2 { font-size:30px; letter-spacing:-.04em; line-height:1.08; margin:4px 0 8px; 
     var start = $('#oauth-start'), cancel = $('#oauth-cancel'), status = $('#oauth-status'), link = $('#oauth-link');
     if (!start) return;
     start.disabled = state.oauthBusy || !!state.oauth;
-    start.textContent = state.oauthBusy ? '正在准备登录…' : '登录 WorkBuddy';
+    start.textContent = state.oauthBusy ? tr('正在准备登录…') : tr('登录 WorkBuddy');
     cancel.hidden = !state.oauth;
-    status.textContent = state.oauthMessage || '登录结果会自动显示，无需刷新。';
+    status.textContent = state.oauthMessage || tr('登录结果会自动显示，无需刷新。');
     link.hidden = !state.oauthUrl;
     if (state.oauthUrl) link.href = state.oauthUrl;
     else link.removeAttribute('href');
@@ -946,16 +1246,16 @@ h2 { font-size:30px; letter-spacing:-.04em; line-height:1.08; margin:4px 0 8px; 
       if (result.status === 'completed') {
         state.oauth = null;
         state.oauthUrl = '';
-        state.oauthMessage = '登录成功，' + result.account_label + ' 已加入账号池。';
+        state.oauthMessage = tr('登录成功，') + result.account_label + tr(' 已加入账号池。');
         updateOAuthView();
         return refreshOverview();
       }
       if (['failed', 'expired', 'cancelled'].indexOf(result.status) >= 0) {
         state.oauth = null;
         state.oauthUrl = '';
-        state.oauthMessage = result.status === 'expired' ? '登录已超时，请重新开始。' : result.status === 'cancelled' ? '已取消登录。' : '登录失败：' + (result.error || '请重试');
+        state.oauthMessage = result.status === 'expired' ? tr('登录已超时，请重新开始。') : result.status === 'cancelled' ? tr('已取消登录。') : tr('登录失败：') + (result.error || tr('请重试'));
       } else {
-        state.oauthMessage = result.status === 'pending' ? '等待你在官方网页完成登录…' : '授权已完成，正在确认账号…';
+        state.oauthMessage = result.status === 'pending' ? tr('等待你在官方网页完成登录…') : tr('授权已完成，正在确认账号…');
         state.oauthTimer = setTimeout(pollOAuth, 1500);
       }
       updateOAuthView();
@@ -968,6 +1268,39 @@ h2 { font-size:30px; letter-spacing:-.04em; line-height:1.08; margin:4px 0 8px; 
     });
   }
 
+  function setImportStatus(text) {
+    var el = $('#local-import-status');
+    if (el) el.textContent = text;
+  }
+
+  function importErrorText(error) {
+    var path = error.path || '';
+    if (error.code === 'local_import_file_not_found') return tr('未找到凭据文件：') + path;
+    if (error.code === 'local_import_read_error') return tr('无法读取凭据文件：') + path;
+    if (error.code === 'local_import_format_error') return tr('凭据文件格式不支持：') + path;
+    return error.message;
+  }
+
+  function wireImport() {
+    var btn = $('#local-import');
+    if (!btn) return;
+    btn.addEventListener('click', function () {
+      if (state.importBusy) return;
+      state.importBusy = true;
+      btn.disabled = true;
+      setImportStatus(tr('正在导入…'));
+      api('accounts/import-local', { method: 'POST' }).then(function (result) {
+        setImportStatus(result.imported > 0 ? tr('已导入 ') + result.imported + tr(' 个账号。') : tr('未找到可导入的账号。'));
+        return refreshOverview();
+      }).catch(function (error) {
+        setImportStatus(importErrorText(error));
+      }).finally(function () {
+        state.importBusy = false;
+        btn.disabled = false;
+      });
+    });
+  }
+
   function wireLoginForm() {
     var start = $('#oauth-start');
     if (!start) return;
@@ -976,25 +1309,25 @@ h2 { font-size:30px; letter-spacing:-.04em; line-height:1.08; margin:4px 0 8px; 
       var popup = window.open('about:blank', '_blank');
       if (popup) {
         popup.opener = null;
-        popup.document.title = '正在打开官方登录页';
-        popup.document.body.textContent = '正在准备 WorkBuddy 登录，请稍候。';
+        popup.document.title = tr('正在打开官方登录页');
+        popup.document.body.textContent = tr('正在准备 WorkBuddy 登录，请稍候。');
         var meta = popup.document.createElement('meta');
         meta.name = 'referrer'; meta.content = 'no-referrer'; popup.document.head.appendChild(meta);
       }
       state.oauthBusy = true;
-      state.oauthMessage = '正在申请官方登录链接…';
+      state.oauthMessage = tr('正在申请官方登录链接…');
       updateOAuthView();
       var note = $('#oauth-note').value.trim();
       api('oauth/start', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ note: note || undefined }) }).then(function (result) {
         state.oauth = result.id;
         state.oauthUrl = result.authorization_url;
-        state.oauthMessage = '请在新打开的官方网页完成登录；未弹出时点击下方链接。';
+        state.oauthMessage = tr('请在新打开的官方网页完成登录；未弹出时点击下方链接。');
         if (popup && !popup.closed) popup.location.replace(result.authorization_url);
         clearTimeout(state.oauthTimer);
         state.oauthTimer = setTimeout(pollOAuth, 1500);
       }).catch(function (error) {
         if (popup && !popup.closed) popup.close();
-        state.oauthMessage = error.code === 'oauth_already_pending' ? '此浏览器已有登录正在进行，请完成它或等待过期。' : error.message;
+        state.oauthMessage = error.code === 'oauth_already_pending' ? tr('此浏览器已有登录正在进行，请完成它或等待过期。') : error.message;
       }).finally(function () { state.oauthBusy = false; updateOAuthView(); });
     });
     $('#oauth-cancel').addEventListener('click', function () {
@@ -1004,7 +1337,7 @@ h2 { font-size:30px; letter-spacing:-.04em; line-height:1.08; margin:4px 0 8px; 
         if (state.oauth !== id) return;
         clearTimeout(state.oauthTimer);
         state.oauth = null; state.oauthUrl = '';
-        state.oauthMessage = result.status === 'completed' ? '账号已登录并加入池中。' : '已取消登录。';
+        state.oauthMessage = result.status === 'completed' ? tr('账号已登录并加入池中。') : tr('已取消登录。');
         updateOAuthView();
         return refreshOverview();
       }).catch(function (error) { state.oauthMessage = error.message; updateOAuthView(); });
@@ -1025,6 +1358,10 @@ h2 { font-size:30px; letter-spacing:-.04em; line-height:1.08; margin:4px 0 8px; 
   }
 
   // ---------- boot ----------
+  var savedLang = null;
+  try { savedLang = localStorage.getItem(LANG_STORAGE); } catch (e) {}
+  if (savedLang === 'en' || savedLang === 'zh' || savedLang === 'ru') state.lang = savedLang;
+  try { document.documentElement.lang = state.lang === 'zh' ? 'zh-CN' : state.lang; } catch (e) {}
   var saved = null;
   try { saved = localStorage.getItem(KEY_STORAGE); } catch (e) {}
   if (saved) {

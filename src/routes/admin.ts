@@ -152,11 +152,19 @@ export function adminRoutes(app: FastifyInstance, opts: AdminOpts): void {
       });
     } catch (err) {
       if (err instanceof LocalImportError) {
+        // Machine-readable code + resolved path: the panel explains the failure
+        // in its own language instead of echoing this English string back.
         const status = err.code === 'file_not_found' ? 404 : 400;
-        const error = openAiError(status, 'invalid_request', err.message);
-        return reply.code(error.statusCode).send(error.body);
+        return reply.code(status).send({
+          error: {
+            message: err.message,
+            type: 'invalid_request_error',
+            param: err.path ?? null,
+            code: `local_import_${err.code}`,
+          },
+        });
       }
-      const error = openAiError(500, 'internal_error', '无法导入本机 WorkBuddy 账号。');
+      const error = openAiError(500, 'internal_error', 'Could not import local WorkBuddy accounts.');
       return reply.code(error.statusCode).send(error.body);
     }
   });

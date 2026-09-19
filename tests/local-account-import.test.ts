@@ -106,7 +106,7 @@ describe('local WorkBuddy account import', () => {
 
     expect(result.credentials).toEqual([]);
     expect(result.issues).toEqual([
-      { code: 'expired', message: '账号令牌已过期或缺少有效期。' },
+      { code: 'expired', message: 'Account token is expired or has no expiry.' },
     ]);
   });
 
@@ -120,7 +120,7 @@ describe('local WorkBuddy account import', () => {
 
     expect(result.credentials).toEqual([]);
     expect(result.issues).toEqual([
-      { code: 'identity_mismatch', message: '账号身份与令牌不匹配。' },
+      { code: 'identity_mismatch', message: 'Account identity does not match its token.' },
     ]);
   });
 
@@ -130,8 +130,15 @@ describe('local WorkBuddy account import', () => {
     await expect(readLocalWorkBuddyAccounts(missing, now)).rejects.toMatchObject({
       name: 'LocalImportError',
       code: 'file_not_found',
-      message: '未找到本机 WorkBuddy 凭据文件。',
+      message: 'Local WorkBuddy credential file not found.',
     } satisfies Partial<LocalImportError>);
+    // The path travels in its own field so the panel can show it deliberately,
+    // while the message itself stays free of filesystem details.
+    await expect(readLocalWorkBuddyAccounts(missing, now)).rejects.toMatchObject({
+      path: missing,
+    } satisfies Partial<LocalImportError>);
+    const err: unknown = await readLocalWorkBuddyAccounts(missing, now).catch((e: unknown) => e);
+    expect((err as LocalImportError).message).not.toContain(missing);
   });
 
   it('reports malformed JSON as a format error', async () => {
@@ -140,7 +147,7 @@ describe('local WorkBuddy account import', () => {
     await expect(readLocalWorkBuddyAccounts(path, now)).rejects.toMatchObject({
       name: 'LocalImportError',
       code: 'format_error',
-      message: 'WorkBuddy 凭据文件不是有效 JSON。',
+      message: 'The credential file is not valid JSON.',
     } satisfies Partial<LocalImportError>);
   });
 });

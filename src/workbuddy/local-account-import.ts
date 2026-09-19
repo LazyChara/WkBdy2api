@@ -41,6 +41,7 @@ export class LocalImportError extends Error {
   constructor(
     readonly code: 'file_not_found' | 'format_error' | 'read_error',
     message: string,
+    readonly path?: string,
   ) {
     super(message);
     this.name = 'LocalImportError';
@@ -57,21 +58,21 @@ export async function readLocalWorkBuddyAccounts(
   } catch (error) {
     const code = (error as NodeJS.ErrnoException).code;
     if (code === 'ENOENT') {
-      throw new LocalImportError('file_not_found', '未找到本机 WorkBuddy 凭据文件。');
+      throw new LocalImportError('file_not_found', 'Local WorkBuddy credential file not found.', path);
     }
-    throw new LocalImportError('read_error', '无法读取本机 WorkBuddy 凭据文件。');
+    throw new LocalImportError('read_error', 'Cannot read the local WorkBuddy credential file.', path);
   }
 
   let document: unknown;
   try {
     document = JSON.parse(raw);
   } catch {
-    throw new LocalImportError('format_error', 'WorkBuddy 凭据文件不是有效 JSON。');
+    throw new LocalImportError('format_error', 'The credential file is not valid JSON.', path);
   }
 
   const candidates = collectCandidates(document);
   if (candidates.length === 0) {
-    throw new LocalImportError('format_error', 'WorkBuddy 凭据文件缺少可识别的账号结构。');
+    throw new LocalImportError('format_error', 'No recognizable account structure in the credential file.', path);
   }
 
   const credentials: LocalImportResult['credentials'] = [];
@@ -81,28 +82,28 @@ export async function readLocalWorkBuddyAccounts(
     const account = accountSchema.safeParse(candidate.account);
     const auth = authSchema.safeParse(candidate.auth);
     if (!account.success || !auth.success) {
-      issues.push({ code: 'format_error', message: '账号缺少必要字段。' });
+      issues.push({ code: 'format_error', message: 'Account is missing required fields.' });
       continue;
     }
 
     const token = stripBearer(auth.data.accessToken);
     const payload = parseJwtPayload(token);
     if (!payload) {
-      issues.push({ code: 'format_error', message: '账号令牌格式无效。' });
+      issues.push({ code: 'format_error', message: 'Account token is malformed.' });
       continue;
     }
     if (payload.sub !== account.data.uid) {
-      issues.push({ code: 'identity_mismatch', message: '账号身份与令牌不匹配。' });
+      issues.push({ code: 'identity_mismatch', message: 'Account identity does not match its token.' });
       continue;
     }
     if (typeof payload.exp !== 'number' || payload.exp * 1000 <= now) {
-      issues.push({ code: 'expired', message: '账号令牌已过期或缺少有效期。' });
+      issues.push({ code: 'expired', message: 'Account token is expired or has no expiry.' });
       continue;
     }
 
     const domain = auth.data.domain ?? DEFAULT_DOMAIN;
     if (!isAllowedDomain(domain)) {
-      issues.push({ code: 'invalid_domain', message: '账号域名无效。' });
+      issues.push({ code: 'invalid_domain', message: 'Account domain is not allowed.' });
       continue;
     }
 
@@ -162,7 +163,7 @@ function isAllowedDomain(domain: string): boolean {
 
 function buildSafeNote(email: string | undefined, uid: string): string {
   const uidSuffix = uid.slice(-4);
-  if (!email || !email.includes('@')) return `本机 WorkBuddy · UID …${uidSuffix}`;
+  if (!email || !email.includes('@')) return `Local file · UID …${uidSuffix}`;
   const domain = email.slice(email.lastIndexOf('@') + 1);
-  return `本机 WorkBuddy · …@${domain} · UID …${uidSuffix}`;
+  return `Local file · …@${domain} · UID …${uidSuffix}`;
 }

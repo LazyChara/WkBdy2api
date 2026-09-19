@@ -40,7 +40,7 @@ async function panel(popupBlocked = false, context: { saved: Record<string, numb
   const input = w.document.querySelector('#key-input') as unknown as HTMLInputElement;
   input.value = 'test-only-admin-key';
   (w.document.querySelector('#key-submit') as unknown as HTMLButtonElement).click();
-  await vi.waitFor(() => expect(w.document.querySelector('#main h2')?.textContent).toBe('概览'));
+  await vi.waitFor(() => expect(w.document.querySelector('#main h2')?.textContent).toBe('Overview'));
   (w.document.querySelector('[data-view="upstream"]') as unknown as HTMLButtonElement).click();
   return { w, fetchFn, popup };
 }
@@ -53,7 +53,7 @@ describe('embedded OAuth panel interactions', () => {
     note.value = 'keep my note'; note.focus();
     (w.document.querySelector('#oauth-start') as unknown as HTMLButtonElement).click();
     await vi.waitFor(() => expect(popup.location.replace).toHaveBeenCalledWith('https://www.workbuddy.ai/login?state=secret-in-memory'));
-    await vi.waitFor(() => expect(w.document.querySelector('#oauth-status')?.textContent).toContain('登录成功'), { timeout: 3000 });
+    await vi.waitFor(() => expect(w.document.querySelector('#oauth-status')?.textContent).toContain('Signed in'), { timeout: 3000 });
     await vi.waitFor(() => expect(w.document.querySelector('#acct-rows')?.textContent).toContain('#1'));
     expect(w.document.querySelector('#main .section')).toBe(section);
     expect(w.document.querySelector('#oauth-note')).toBe(note);
@@ -79,7 +79,7 @@ describe('embedded OAuth panel interactions', () => {
     const select = w.document.querySelector('.context-select') as unknown as HTMLSelectElement;
     select.value = '1000000';
     select.dispatchEvent(new w.Event('change'));
-    await vi.waitFor(() => expect(w.document.getElementById('context-save-state-deepseek-v4.1-flash')?.textContent).toContain('已保存'));
+    await vi.waitFor(() => expect(w.document.getElementById('context-save-state-deepseek-v4.1-flash')?.textContent).toContain('Saved'));
     expect(fetchFn.mock.calls.find(([path]) => path.endsWith('/context-window'))?.[1]?.body).toBe(JSON.stringify({ model_id: 'deepseek-v4.1-flash', context_window: 1000000 }));
     for (const view of ['overview', 'models']) (w.document.querySelector('[data-view="' + view + '"]') as unknown as HTMLButtonElement).click();
     expect((w.document.querySelector('.context-select') as unknown as HTMLSelectElement).value).toBe('1000000');
@@ -97,7 +97,7 @@ describe('embedded OAuth panel interactions', () => {
     select.value = '1000000'; select.dispatchEvent(new w.Event('change'));
     await vi.waitFor(() => expect(select.disabled).toBe(false));
     expect(select.value).toBe('300000');
-    expect(w.document.getElementById('context-save-state-deepseek-v4.1-flash')?.textContent).toContain('保存失败');
+    expect(w.document.getElementById('context-save-state-deepseek-v4.1-flash')?.textContent).toContain('Save failed');
     expect(context.saved).toEqual({ 'deepseek-v4.1-flash': 300000 });
   });
 
@@ -106,7 +106,21 @@ describe('embedded OAuth panel interactions', () => {
     (w.document.querySelector('#oauth-start') as unknown as HTMLButtonElement).click();
     await vi.waitFor(() => expect(w.document.querySelector('#oauth-link')?.hasAttribute('hidden')).toBe(false));
     expect(w.document.querySelector('#oauth-link')?.getAttribute('rel')).toBe('noopener noreferrer');
-    expect(w.document.querySelector('#oauth-status')?.textContent).toContain('下方链接');
+    expect(w.document.querySelector('#oauth-status')?.textContent).toContain('click the link below');
+  });
+  it('defaults to English and switches EN/RU/ZH with persistence', async () => {
+    const { w } = await panel();
+    (w.document.querySelector('[data-view="overview"]') as unknown as HTMLButtonElement).click();
+    await vi.waitFor(() => expect(w.document.querySelector('#toolbar-title')?.textContent).toBe('Overview'));
+    expect(w.document.documentElement.lang).toBe('en');
+    (w.document.querySelector('.lang-btn[data-lang="ru"]') as unknown as HTMLButtonElement).click();
+    await vi.waitFor(() => expect(w.document.querySelector('#toolbar-title')?.textContent).toBe('Обзор'));
+    expect(w.document.documentElement.lang).toBe('ru');
+    (w.document.querySelector('.lang-btn[data-lang="zh"]') as unknown as HTMLButtonElement).click();
+    await vi.waitFor(() => expect(w.document.querySelector('#toolbar-title')?.textContent).toBe('概览'));
+    (w.document.querySelector('.lang-btn[data-lang="en"]') as unknown as HTMLButtonElement).click();
+    await vi.waitFor(() => expect(w.document.querySelector('#toolbar-title')?.textContent).toBe('Overview'));
+    expect(w.localStorage.getItem('wkb2api-lang')).toBe('en');
   });
 
 });
